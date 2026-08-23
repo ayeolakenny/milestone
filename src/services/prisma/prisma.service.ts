@@ -24,15 +24,10 @@ export class PrismaService
       throw new Error('DATABASE_URL is missing.');
     }
 
-    const certPath = join(process.cwd(), 'certs', 'aws-rds-ca.pem');
-    Logger.verbose(`Loading cert from: ${certPath}`);
-    const ca = readFileSync(certPath).toString();
-
     const pool = new Pool({
       connectionString: databaseUrl,
       ssl: {
         rejectUnauthorized: true,
-        ca,
       },
     });
 

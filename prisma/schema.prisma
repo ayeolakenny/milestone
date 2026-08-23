@@ -12,6 +12,55 @@ datasource db {
 }
 
 model User {
-  id   String @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  purchases            Purchase[]
+  unlockedAchievements UserAchievement[]
+}
+
+model Purchase {
+  id        String   @id @default(uuid())
+  amount    Int
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+}
+
+/// A track of related achievements, e.g. "purchases"
+model AchievementGroup {
+  id   String @id @default(uuid())
+  key  String @unique // e.g. "purchases"
   name String
+
+  achievements Achievement[]
+}
+
+model Achievement {
+  id        String @id @default(uuid())
+  groupId   String
+  key       String @unique // e.g. "first_purchase", "five_purchases"
+  name      String
+  threshold Int // purchase count needed to unlock
+  order     Int // sequence within the group
+
+  group      AchievementGroup  @relation(fields: [groupId], references: [id])
+  unlockedBy UserAchievement[]
+
+  @@unique([groupId, order])
+}
+
+model UserAchievement {
+  id         String   @id @default(uuid())
+  unlockedAt DateTime @default(now())
+
+  user          User        @relation(fields: [userId], references: [id])
+  userId        String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  achievementId String
+
+  @@unique([userId, achievementId])
 }
