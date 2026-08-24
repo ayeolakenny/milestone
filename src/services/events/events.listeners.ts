@@ -1,13 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { AchievementUnlockedEvent, EVENTS } from './events.types';
+import {
+  AchievementUnlockedEvent,
+  BadgeUnlockedEvent,
+  EVENTS,
+} from './events.types';
 import { BadgesService } from '../../modules/badges/badges.service';
 import { AchievementsService } from '../../modules/achievements/achievements.service';
+import { PaymentsQueueService } from 'src/modules/payments/payments.queue';
 
 @Injectable()
 export class EventListeners {
   constructor(
     private badgesService: BadgesService,
+    private paymentsService: PaymentsQueueService,
     private achievementsService: AchievementsService,
   ) {}
 
@@ -17,7 +23,16 @@ export class EventListeners {
   }
 
   @OnEvent(EVENTS.ACHIEVEMENT_UNLOCKED)
-  async handle(event: AchievementUnlockedEvent) {
+  async handleAchievementUnlocked(event: AchievementUnlockedEvent) {
     await this.badgesService.checkAndUnlockForUser(event.user.id);
+  }
+
+  @OnEvent(EVENTS.BADGE_UNLOCKED)
+  async handleBadgeUnlocked(event: BadgeUnlockedEvent) {
+    await this.paymentsService.enqueuePayout({
+      badgeName: event.badge_name,
+      userBadgeId: event.userBadgeId,
+      userId: event.user.id,
+    });
   }
 }

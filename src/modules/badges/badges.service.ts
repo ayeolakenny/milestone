@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  BadgeUnlockedEvent,
-  EVENTS,
-} from '../../services/events/events.types';
+import { BadgeUnlockedEvent, EVENTS } from '../../services/events/events.types';
 import { PrismaService } from '../../services/prisma/prisma.service';
 
 @Injectable()
@@ -30,17 +27,21 @@ export class BadgesService {
     });
 
     for (const badge of eligible) {
-      await this.prisma.userBadge.create({
+      const userBadge = await this.prisma.userBadge.create({
         data: { userId, badgeId: badge.id },
       });
 
       this.eventEmitter.emit(
         EVENTS.BADGE_UNLOCKED,
-        new BadgeUnlockedEvent(badge.name, {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        }),
+        new BadgeUnlockedEvent(
+          badge.name,
+          {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          },
+          userBadge.id,
+        ),
       );
     }
   }

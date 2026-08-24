@@ -20,6 +20,7 @@ model User {
   purchases            Purchase[]
   unlockedAchievements UserAchievement[]
   userBadges           UserBadge[]
+  payments             Payment[]
 }
 
 model Badge {
@@ -86,4 +87,25 @@ model UserAchievement {
   achievementId String
 
   @@unique([userId, achievementId])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  userId      String
+  userBadgeId String        @unique
+  reference   String        @unique /// sent to Paystack — same value reused across retries
+  amount      Int
+  status      PaymentStatus @default(PENDING)
+  provider    String
+  providerRef String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }

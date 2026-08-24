@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   AchievementUnlockedEvent,
@@ -46,5 +46,55 @@ export class AchievementsService {
         }),
       );
     }
+  }
+
+  async getSummaryForUser(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const unlocked = await this.prisma.userAchievement.findMany({
+      where: { userId },
+      include: { achievement: true },
+    });
+    const unlockedIds = new Set(unlocked.map((u) => u.achievementId));
+    const unlockedNames = unlocked.map((u) => u.achievement.name);
+
+    // Next available achievement per group — lowest `order` not yet unlocked, per group
+    const groups = await this.prisma.achievementGroup.findMany({
+      include: { achievements: { orderBy: { order: 'asc' } } },
+    });
+
+    const nextAvailable: string[] = [];
+    for (const group of groups) {
+      const next = group.achievements.find((a) => !unlockedIds.has(a.id));
+      if (next) nextAvailable.push(next.name);
+    }
+
+    // Badges
+    const unlockedBadges = await this.prisma.userBadge.findMany({
+      where: { userId },
+      include: { badge: true },
+      orderBy: { badge: { order: 'desc' } },
+    });
+    const currentBadge = unlockedBadges[0]?.badge.name ?? null;
+
+    const allBadges = await this.prisma.badge.findMany({
+      orderBy: { order: 'asc' },
+    });
+    const unlockedBadgeIds = new Set(unlockedBadges.map((ub) => ub.badgeId));
+    const nextBadgeRow = allBadges.find((b) => !unlockedBadgeIds.has(b.id));
+
+    const totalUnlocked = unlockedNames.length;
+    const remainingToUnlockNextBadge = nextBadgeRow
+      ? Math.max(0, nextBadgeRow.requiredAchievementCount - totalUnlocked)
+      : 0;
+
+    return {
+      unlocked_achievements: unlockedNames,
+      next_available_achievements: nextAvailable,
+      current_badge: currentBadge,
+      next_badge: nextBadgeRow?.name ?? null,
+      remaining_to_unlock_next_badge: remainingToUnlockNextBadge,
+    };
   }
 }

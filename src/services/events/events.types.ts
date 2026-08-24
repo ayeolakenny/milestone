@@ -15,5 +15,6 @@ export class BadgeUnlockedEvent {
   constructor(
     public readonly badge_name: string,
     public readonly user: { id: string; email: string; name: string },
+    public readonly userBadgeId: string,
   ) {}
 }
