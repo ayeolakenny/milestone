@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
-  AchievementUnlockedEvent,
+  BadgeUnlockedEvent,
   EVENTS,
 } from '../../services/events/events.types';
 import { PrismaService } from '../../services/prisma/prisma.service';
 
 @Injectable()
-export class AchievementsService {
+export class BadgesService {
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
@@ -17,29 +17,26 @@ export class AchievementsService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return;
 
-    const purchaseCount = await this.prisma.purchase.count({
+    const totalUnlocked = await this.prisma.userAchievement.count({
       where: { userId },
     });
 
-    // Achievements in the "purchases" group whose threshold is now met,
-    // that this user hasn't already unlocked.
-    const eligible = await this.prisma.achievement.findMany({
+    const eligible = await this.prisma.badge.findMany({
       where: {
-        group: { key: 'purchases' },
-        threshold: { lte: purchaseCount },
+        requiredAchievementCount: { lte: totalUnlocked },
         unlockedBy: { none: { userId } },
       },
       orderBy: { order: 'asc' },
     });
 
-    for (const achievement of eligible) {
-      await this.prisma.userAchievement.create({
-        data: { userId, achievementId: achievement.id },
+    for (const badge of eligible) {
+      await this.prisma.userBadge.create({
+        data: { userId, badgeId: badge.id },
       });
 
       this.eventEmitter.emit(
-        EVENTS.ACHIEVEMENT_UNLOCKED,
-        new AchievementUnlockedEvent(achievement.name, {
+        EVENTS.BADGE_UNLOCKED,
+        new BadgeUnlockedEvent(badge.name, {
           id: user.id,
           email: user.email,
           name: user.name,

@@ -1,16 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma/prisma.service';
 import { CreatePurchaseDto } from './purchases.types';
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EVENTS } from '../../services/events/events.types';
-import { AchievementsService } from '../achievements/achievements.service';
 
 @Injectable()
 export class PurchasesService {
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
-    private achievementsService: AchievementsService,
   ) {}
 
   async create(userId: string, dto: CreatePurchaseDto) {
@@ -24,10 +22,5 @@ export class PurchasesService {
     this.eventEmitter.emit(EVENTS.PURCHASE_CREATED, { userId });
 
     return purchase;
-  }
-
-  @OnEvent(EVENTS.PURCHASE_CREATED)
-  async handle(payload: { userId: string }) {
-    await this.achievementsService.checkAndUnlockForUser(payload.userId);
   }
 }

@@ -10,3 +10,10 @@ export class AchievementUnlockedEvent {
     public readonly user: { id: string; email: string; name: string },
   ) {}
 }
+
+export class BadgeUnlockedEvent {
+  constructor(
+    public readonly badge_name: string,
+    public readonly user: { id: string; email: string; name: string },
+  ) {}
+}
