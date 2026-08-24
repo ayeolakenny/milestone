@@ -1,55 +1,35 @@
-# syntax = docker/dockerfile:1
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
-# Adjust NODE_VERSION as desired
-ARG NODE_VERSION=22.16.0
-FROM node:${NODE_VERSION}-slim AS base
-
-LABEL fly_launch_runtime="NestJS/Prisma"
-
-# NestJS/Prisma app lives here
 WORKDIR /app
 
-# Set production environment
-ENV NODE_ENV="production"
+# Only copy package files first (caches dependencies)
+COPY pnpm-lock.yaml package.json ./
 
-# Install pnpm
-ARG PNPM_VERSION=10.11.0
-RUN npm install -g pnpm@$PNPM_VERSION
+# Install dependencies (cached until package.json changes)
+RUN pnpm install --frozen-lockfile
 
-
-# Throw-away build stage to reduce size of final image
-FROM base AS build
-
-# Install packages needed to build node modules
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp openssl pkg-config python-is-python3
-
-# Install node modules
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod=false
-
-# Generate Prisma Client
-COPY prisma .
-RUN npx prisma generate
-
-# Copy application code
+# Copy the rest of the app
 COPY . .
 
-# Build application
+# Generate Prisma client + build
+ENV DATABASE_URL="postgresql://dummy:password@dummy:5432/dummy?schema=public"
+RUN pnpm exec prisma generate
 RUN pnpm run build
 
+# Production runtime
+FROM node:20-alpine AS runner
+WORKDIR /app
 
-# Final stage for app image
-FROM base
+ENV NODE_ENV=production
 
-# Install packages needed for deployment
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y openssl && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+# Copy only what's needed
+COPY --from=base /app/dist ./dist
+COPY --from=base /app/package.json ./package.json
+COPY --from=base /app/prisma ./prisma
+COPY --from=base /app/prisma.config.ts ./prisma.config.ts
+COPY --from=base /app/node_modules ./node_modules
 
-# Copy built application
-COPY --from=build /app /app
+EXPOSE 4000
 
-# Start the server by default, this can be overwritten at runtime
-EXPOSE 3000
-CMD [ "pnpm", "run", "start" ]
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push && npm run start:prod"]

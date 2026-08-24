@@ -9,7 +9,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { config } from 'dotenv';
 import { join } from 'path';
-import { readFileSync } from 'fs';
 
 config({ path: join(process.cwd(), '.env') });
 
@@ -24,11 +23,13 @@ export class PrismaService
       throw new Error('DATABASE_URL is missing.');
     }
 
+    // sslmode=disable is used for the dockerized/local Postgres, which doesn't
+    // speak SSL at all — anything else (managed DB, RDS, etc.) gets verified TLS.
+    const sslRequired = !databaseUrl.includes('sslmode=disable');
+
     const pool = new Pool({
       connectionString: databaseUrl,
-      ssl: {
-        rejectUnauthorized: true,
-      },
+      ssl: sslRequired ? { rejectUnauthorized: true } : false,
     });
 
     const adapter = new PrismaPg(pool);
