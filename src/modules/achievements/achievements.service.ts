@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   AchievementUnlockedEvent,
   EVENTS,
 } from '../../services/events/events.types';
 import { PrismaService } from '../../services/prisma/prisma.service';
+import { bad } from '../../utils/error.utils';
 
 @Injectable()
 export class AchievementsService {
@@ -50,7 +51,7 @@ export class AchievementsService {
 
   async getSummaryForUser(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) bad('User not found', 404);
 
     const unlocked = await this.prisma.userAchievement.findMany({
       where: { userId },

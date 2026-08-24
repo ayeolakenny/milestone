@@ -99,11 +99,12 @@ model Payment {
   id          String        @id @default(uuid())
   userId      String
   userBadgeId String        @unique
-  reference   String        @unique /// sent to Paystack — same value reused across retries
+  reference   String        @unique /// most recent value sent to Paystack — regenerated on every retry, since Paystack rejects a reused reference
   amount      Int
   status      PaymentStatus @default(PENDING)
   provider    String
   providerRef String?
+  retryCount  Int           @default(0)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

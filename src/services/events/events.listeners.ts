@@ -7,7 +7,7 @@ import {
 } from './events.types';
 import { BadgesService } from '../../modules/badges/badges.service';
 import { AchievementsService } from '../../modules/achievements/achievements.service';
-import { PaymentsQueueService } from 'src/modules/payments/payments.queue';
+import { PaymentsQueueService } from '../../modules/payments/payments.queue';
 
 @Injectable()
 export class EventListeners {

@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma/prisma.service';
 import { CreatePurchaseDto } from './purchases.types';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EVENTS } from '../../services/events/events.types';
+import { bad } from '../../utils/error.utils';
 
 @Injectable()
 export class PurchasesService {
@@ -13,7 +14,7 @@ export class PurchasesService {
 
   async create(userId: string, dto: CreatePurchaseDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) bad('User not found', 404);
 
     const purchase = await this.prisma.purchase.create({
       data: { userId, amount: dto.amount },

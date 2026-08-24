@@ -1,9 +1,9 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { randomUUID } from 'crypto';
-import { PaystackService } from 'src/services/paystack/paystack.service';
-import { PrismaService } from 'src/services/prisma/prisma.service';
-import { QUEUES } from 'src/config/queue.constants';
+import { PaystackService } from '../../services/paystack/paystack.service';
+import { PrismaService } from '../../services/prisma/prisma.service';
+import { QUEUES } from '../../config/queue.constants';
 
 const CASHBACK_AMOUNT_KOBO = Number(process.env.CASHBACK_AMOUNT_KOBO ?? 30000);
 
@@ -25,16 +25,26 @@ export class PaymentProcessor extends WorkerHost {
 
     if (payment?.status === 'SUCCESS') return; // already paid — nothing to do
 
+    // Paystack rejects a reused reference with "duplicate_transfer_reference",
+    // so every attempt (including retries) needs its own fresh reference —
+    // the Payment row itself, not the reference, is what dedupes on userBadgeId.
+    const reference = `badge-payout-${userBadgeId}-${randomUUID().slice(0, 8)}`;
+
     if (!payment) {
       payment = await this.prisma.payment.create({
         data: {
           userId,
           userBadgeId,
-          reference: `badge-payout-${userBadgeId}-${randomUUID().slice(0, 8)}`,
+          reference,
           amount: CASHBACK_AMOUNT_KOBO,
           status: 'PENDING',
           provider: 'paystack',
         },
+      });
+    } else {
+      payment = await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { reference },
       });
     }
 
@@ -46,9 +56,11 @@ export class PaymentProcessor extends WorkerHost {
         reference: payment.reference,
       });
 
+      // Transfer accepted, not yet completed — the Paystack webhook is the
+      // source of truth for the final SUCCESS/FAILED status.
       await this.prisma.payment.update({
         where: { id: payment.id },
-        data: { status: 'SUCCESS', providerRef: result.transfer_code },
+        data: { providerRef: result.transfer_code },
       });
     } catch (err) {
       await this.prisma.payment.update({

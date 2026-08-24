@@ -5,3 +5,5 @@ export const QUEUES = {
 export enum PaymentJobType {
   PAYOUT = 'payout',
 }
+
+export const MAX_PAYMENT_RETRIES = 3;

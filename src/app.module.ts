@@ -11,6 +11,7 @@ import { EventsModule } from './services/events/events.module';
 import { BullModule } from '@nestjs/bullmq';
 import { PaystackModule } from './services/paystack/paystack.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { WebhookModule } from './modules/webhook/webhook.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     PaymentsModule,
     PurchasesModule,
     AchievementsModule,
+    WebhookModule,
   ],
   controllers: [AppController],
   providers: [AppService],
