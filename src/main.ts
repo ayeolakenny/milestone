@@ -4,6 +4,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
+  // rawBody: true exposes req.rawBody, needed to verify the Paystack webhook's
+  // HMAC signature against the exact bytes received.
   const app = await NestFactory.create(AppModule, { rawBody: true });
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);

@@ -62,6 +62,10 @@ export class WebhookController {
   })
   @ApiResponse({ status: 200, description: 'Webhook processed' })
   @ApiResponse({ status: 401, description: 'Invalid or missing signature' })
+  // @Req() instead of @Body(): signature verification needs the exact raw
+  // bytes (rawBody: true in main.ts), not the parsed-then-reserialized object
+  // @Body() would give — parsing and reserializing can change whitespace and
+  // break the HMAC comparison.
   async paystack(
     @Req() req: RawBodyRequest<Request>,
     @Headers('x-paystack-signature') signature?: string,

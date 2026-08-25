@@ -10,6 +10,9 @@ export class BadgesService {
     private eventEmitter: EventEmitter2,
   ) {}
 
+  // Called by EventListeners after every achievement unlock, not on a schedule —
+  // badge thresholds are checked against the user's running achievement total,
+  // so unlocking several achievements at once can unlock several badges in a row.
   async checkAndUnlockForUser(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return;
