@@ -173,11 +173,41 @@ producing bytes that no longer match the signature (and a confusing 401). `curl 
 
 ## Testing
 
+**Unit tests** — mocked dependencies, no external services needed:
+
 ```bash
-pnpm test          # unit tests
-pnpm test:cov       # coverage
-pnpm test:e2e       # e2e tests
+pnpm test          # run once
+pnpm test:watch     # re-run on file changes
+pnpm test:cov       # with a coverage report
 ```
+
+Covers the business logic in every service: achievement/badge threshold unlocking, purchase
+recording, the `error.utils.ts` status-code mapping, payment retry/reference-regeneration
+behavior, and the webhook's HMAC signature verification (valid/missing/tampered) plus its
+retry-then-give-up logic.
+
+**Integration/e2e tests** — real Postgres, real Redis/BullMQ, real HTTP requests through the full
+app; the only thing mocked is the outbound Paystack call itself (no real transfers, no network
+dependency):
+
+```bash
+docker compose up -d postgres redis   # if not already running
+npx prisma db push
+npx prisma db seed                    # achievement/badge definitions must exist for the flow below
+
+pnpm test:e2e
+```
+
+`test/purchases-flow.e2e-spec.ts` drives the whole advertised flow end-to-end: create a user →
+make a purchase → poll until the `First Purchase` achievement and `Starter` badge actually unlock
+(achievement checks run via a fire-and-forget event listener, so the test waits for real async
+completion rather than asserting immediately) → confirm the real BullMQ worker picks up the payout
+job and creates a `Payment` row → send it a correctly-signed webhook and confirm the status flips
+to `SUCCESS`. Also covers 404/409/400 error paths and rejecting an unsigned or tampered webhook.
+
+`pnpm test:e2e` runs test files serially (`--runInBand`) since they share one real Postgres/Redis
+instance — running them in parallel workers (Jest's default) causes the BullMQ workers from
+different test files to race each other for jobs on the same queue.
 
 ## Deployment
 
